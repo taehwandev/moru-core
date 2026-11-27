@@ -78,18 +78,34 @@ class NativeFigmaValidate(unittest.TestCase):
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
-            return real_run(argv, **kwargs)
+            done = real_run(argv, **kwargs)
+            if argv[-1] == "figma-smoke-frames":
+                request = json.loads(json.loads(kwargs["input"])["text"])
+                self.assertIs(request["discover"], True)
+                self.assertNotIn("frames", request)
+                self.assertEqual((0, b""), (done.returncode, done.stderr))
+            return done
 
         def fake_extractor(argv, **kwargs):
             self.assertEqual(str(live_smoke.TOOL), argv[1])
             root = Path(argv[argv.index("--out") + 1]) / "smoke"
             (root / "summary").mkdir(parents=True)
             (root / "summary/design-summary.json").write_text(json.dumps(smoke_summary))
-            (root / "assets").mkdir()
-            (root / "assets/one.svg").write_text("<svg/>")
+            if with_assets:
+                (root / "assets").mkdir()
+                (root / "assets/.hidden.svg").write_text("<svg/>")
+                (root / "assets/directory.svg").mkdir()
+                (root / "assets/icon.png").touch()
+                (root / "assets/ignored.SVG").touch()
             (root / "frames").mkdir()
             (root / "frames/one.png").write_bytes(bytes.fromhex(
                 "89504e470d0a1a0a0000000d494844520000000100000001"))
+            (root / "frames/.hidden.png").write_bytes(bytes.fromhex(
+                "89504e470d0a1a0a0000000d494844520000000200000003"))
+            (root / "frames/ignored.PNG").write_bytes(b"ignored")
+            if not with_assets:
+                for name in ("z.png", "a.png"):
+                    (root / "frames" / name).write_bytes(b"bad")
             return subprocess.CompletedProcess(argv, 0, "", "")
 
         with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path), "CUSTOM_SMOKE_TOKEN": fake_token},
@@ -116,7 +132,7 @@ class NativeFigmaValidate(unittest.TestCase):
         incomplete["screens"] = [{"id": "1", "name": "screen", "type": "FRAME"}]
         incomplete["assetCandidates"] = [
             {"id": str(i), "imageRefs": ["ref"], "assetPath": "a.png" if i < 199 else ""} for i in range(200)]
-        for smoke_summary, status in ((_valid_summary(), 0), (incomplete, 1)):
+        for smoke_summary, status, with_assets in ((_valid_summary(), 0, True), (incomplete, 1, False)):
             with self.subTest(status=status):
                 calls.clear()
                 reference = run_smoke("python")
@@ -126,8 +142,12 @@ class NativeFigmaValidate(unittest.TestCase):
                 self.assertEqual(status, observed[0])
                 self.assertEqual(["figma-smoke-analysis", "figma-smoke-frames"], calls)
                 if status:
+                    self.assertIn("frames=4 (for example: (2, 3)) assets: svg=0 png=0", observed[1])
+                    self.assertLess(observed[1].index("invalid PNG: a.png"), observed[1].index("invalid PNG: z.png"))
                     self.assertIn("image-fill recovery 199/200 (99%) < 100%", observed[1])
                     self.assertIn("layout coverage is empty for a non-empty handoff", observed[1])
+                else:
+                    self.assertIn("frames=2 (for example: (2, 3)) assets: svg=2 png=1", observed[1])
         smoke_summary = incomplete
         expected_failure = run_smoke("python")
         receipt = {"problems": [], "report": "untrusted", "screens": 0, "layout_total": 0,
@@ -142,6 +162,16 @@ class NativeFigmaValidate(unittest.TestCase):
                 calls.clear()
                 self.assertEqual(expected_failure, run_smoke("auto"))
                 self.assertEqual(["figma-smoke-frames"], calls)
+        discovered = {"frames": ["frames/a.png"], "failures": [], "svg_count": 0, "png_count": 0}
+        for bad in ({**discovered, "svg_count": True}, {**discovered, "frames": ["../outside.png"]},
+                    {**discovered, "frames": ["frames/z.png", "frames/a.png"]}):
+            def malformed_discovery(operation, payload, source):
+                return bad if operation == "figma-smoke-frames" else real_probe(operation, payload, source)
+
+            with self.subTest(discovery=bad), patch.object(live_smoke, "_probe", side_effect=malformed_discovery):
+                calls.clear()
+                self.assertEqual(expected_failure, run_smoke("auto"))
+                self.assertEqual(["figma-smoke-analysis"], calls)
 
     def test_native_frame_headers_rounding_order_and_declines(self):
         import live_smoke

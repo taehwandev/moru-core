@@ -63,20 +63,47 @@ def _frame_scale_failures(summary: dict, bundle_root: Path, scale: float) -> lis
     return failures
 
 
+def _frame_probe(summary, bundle_root, scale, selection):
+    if _probe is None or type(summary) is not dict:
+        return None
+    try:
+        root = str(bundle_root.resolve(strict=True))
+    except (OSError, RuntimeError):
+        return None
+    receipt = _probe("figma-smoke-frames", {
+        "bundle_root": root, "screens": summary.get("screens", []), "scale": scale, **selection,
+    }, __file__)
+    if (type(receipt) is not dict or type(receipt.get("failures")) is not list
+            or any(type(item) is not str for item in receipt["failures"])):
+        return None
+    return receipt
+
+
+def _discovered_frames(summary, root, scale):
+    receipt = _frame_probe(summary, root, scale, {"discover": True})
+    if (receipt is None or set(receipt) != {"frames", "failures", "svg_count", "png_count"}
+            or type(receipt["frames"]) is not list or len(receipt["frames"]) > 32000
+            or any(type(receipt[k]) is not int or not 0 <= receipt[k] <= 32000 for k in ("svg_count", "png_count"))):
+        return None
+    previous = ""
+    for name in receipt["frames"]:
+        if (type(name) is not str or name <= previous or not name.startswith("frames/")
+                or name.count("/") != 1 or not name.endswith(".png") or "\0" in name):
+            return None
+        previous = name
+    return receipt
+
+
 def _frame_failures(summary, bundle_root, frames, scale):
-    if _probe is not None and type(summary) is dict and len(frames) <= 32000:
-        try:
-            root = str(bundle_root.resolve(strict=True))
-        except (OSError, RuntimeError):
-            root = None
-        if root is not None:
-            receipt = _probe("figma-smoke-frames", {
-                "bundle_root": root, "frames": [str(path.relative_to(bundle_root)) for path in frames],
-                "screens": summary.get("screens", []), "scale": scale,
-            }, __file__)
-            if (type(receipt) is dict and set(receipt) == {"failures"} and type(receipt["failures"]) is list
-                    and all(type(item) is str for item in receipt["failures"])):
-                return receipt["failures"]
+    if len(frames) <= 32000:
+        names = [str(path.relative_to(bundle_root)) for path in frames]
+        receipt = _frame_probe(summary, bundle_root, scale, {"frames": names})
+        if receipt is not None and set(receipt) == {"failures"}:
+            return receipt["failures"]
+    return _frame_failures_reference(summary, bundle_root, frames, scale)
+
+
+def _frame_failures_reference(summary, bundle_root, frames, scale):
     failures = [] if frames else ["no frame PNG downloaded"]
     for frame in frames:
         size = _png_size(frame)
@@ -157,15 +184,19 @@ def main() -> int:
         if problems:
             failures.append(f"schema violations: {problems}")
 
-        frames = sorted((out / "frames").glob("*.png"))
-        failures.extend(_frame_failures(summary, out, frames, args.scale))
-
-        assets = out / "assets"
-        svgs = list(assets.glob("*.svg")) if assets.exists() else []
-        pngs = list(assets.glob("*.png")) if assets.exists() else []
-        if not args.quick:
-            if not svgs:
-                failures.append("no vector SVG assets exported (asset split broken?)")
+        discovered = _discovered_frames(summary, out, args.scale)
+        if discovered is None:
+            frames = sorted((out / "frames").glob("*.png"))
+            failures.extend(_frame_failures_reference(summary, out, frames, args.scale))
+            assets = out / "assets"
+            svg_count = sum(1 for _ in assets.glob("*.svg")) if assets.exists() else 0
+            png_count = sum(1 for _ in assets.glob("*.png")) if assets.exists() else 0
+        else:
+            frames = [out / name for name in discovered["frames"]]
+            failures.extend(discovered["failures"])
+            svg_count, png_count = discovered["svg_count"], discovered["png_count"]
+        if not args.quick and not svg_count:
+            failures.append("no vector SVG assets exported (asset split broken?)")
 
         if analysis is None:
             cov = coverage_report(summary)
@@ -186,7 +217,7 @@ def main() -> int:
 
         print(format_report(problems, cov) if analysis is None else analysis["report"])
         print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
-              f"assets: svg={len(svgs)} png={len(pngs)}")
+              f"assets: svg={svg_count} png={png_count}")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

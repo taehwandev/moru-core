@@ -15,6 +15,9 @@ use std::{
 
 const EXACT_LIMIT: f64 = (1_u64 << 52) as f64;
 
+#[path = "figma_frame_directory.rs"]
+mod directory;
+
 fn size(root: &File, raw: &str) -> Option<Option<(u32, u32)>> {
     if !raw.ends_with(".png") {
         return None;
@@ -128,7 +131,26 @@ pub(super) fn analyze(text: &str) -> Option<Value> {
         return None;
     }
     let bundle = AtomicSibling::open_directory(root)?;
-    let frames = data.get("frames")?.as_array()?;
+    let discover = match data.get("discover") {
+        None => false,
+        Some(Value::Bool(true)) if data.get("frames").is_none() => true,
+        _ => return None,
+    };
+    let frames: Vec<String> = if discover {
+        let mut paths: Vec<_> = directory::names(&bundle, c"frames")?
+            .into_iter()
+            .filter(|name| name.ends_with(".png"))
+            .map(|name| format!("frames/{name}"))
+            .collect();
+        paths.sort_unstable();
+        paths
+    } else {
+        data.get("frames")?
+            .as_array()?
+            .iter()
+            .map(|v| v.as_str().map(str::to_owned))
+            .collect::<Option<_>>()?
+    };
     let screens = data.get("screens")?.as_array()?;
     let scale = data.get("scale")?.as_f64()?;
     if frames.len() + screens.len() > 4096 || !scale.is_finite() || scale.abs() > EXACT_LIMIT {
@@ -138,8 +160,7 @@ pub(super) fn analyze(text: &str) -> Option<Value> {
     if frames.is_empty() {
         failures.push("no frame PNG downloaded".into());
     }
-    for frame in frames {
-        let path = frame.as_str()?;
+    for path in &frames {
         let name = path.strip_prefix("frames/")?;
         if name.contains('/') {
             return None;
@@ -154,6 +175,16 @@ pub(super) fn analyze(text: &str) -> Option<Value> {
     }
     for screen in screens {
         check_scale(screen, &bundle, scale, &mut failures)?;
+    }
+    if discover {
+        let assets = directory::names(&bundle, c"assets")?;
+        // pathlib glob counts any matching immediate entry, including hidden
+        // names and directories. Asset enumeration never opens the entries.
+        let svg_count = assets.iter().filter(|name| name.ends_with(".svg")).count();
+        let png_count = assets.iter().filter(|name| name.ends_with(".png")).count();
+        return Some(
+            json!({"failures":failures,"frames":frames,"svg_count":svg_count,"png_count":png_count}),
+        );
     }
     Some(json!({"failures":failures}))
 }
