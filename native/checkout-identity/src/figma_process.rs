@@ -21,6 +21,8 @@ use std::{
 
 #[path = "figma_frames.rs"]
 mod frames;
+#[path = "figma_bundle_manifest.rs"]
+mod bundle_manifest;
 #[path = "figma_target.rs"]
 mod target;
 #[path = "figma_plan.rs"]
@@ -37,6 +39,10 @@ struct Outcome {
 
 pub(crate) struct FigmaProcess;
 impl FigmaProcess {
+    pub(crate) fn bundle_manifest(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
+        Self::receipt(bundle_manifest::project(Self::bound_input(request, root, "text")?)?)
+    }
+
     pub(crate) fn plan(request: &serde_json::Value, root: &Path) -> Option<serde_json::Value> {
         Self::extractor_plan(Self::bound_input(request, root, "text")?)
     }

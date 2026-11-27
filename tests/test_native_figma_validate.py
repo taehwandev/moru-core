@@ -225,6 +225,7 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
+        import figma_manifest
         import figma_summary_validate as schema
         from figma_bundle_output import FigmaBundleOutput
         import live_smoke
@@ -232,11 +233,15 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
         summary = _valid_summary()
         summary["designTokens"].update(colorStyles=[], textStyles=[], effectStyles=[])
         summary["meta"].update(fileKey="", startNodeId="")
+        summary["implementationInventory"] = {"renderedNodeIds": ["1", "2"], "excludedNodes": []}
         before = copy.deepcopy(summary)
         expected = ["meta.fileKey missing", "meta.startNodeId missing"]
         output = FigmaBundleOutput(self.base / "bundle")
         output.create_directories()
         args = SimpleNamespace(format="png", scale=1, max_flow_depth=1, no_images=True, include_image_fills=False)
+        with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
+            reference = figma_manifest.build_manifest(before, args)
+        manifest_bytes = json.dumps(reference, indent=2, ensure_ascii=False).encode()
         fake_token = "synthetic-only!"
         real_run = subprocess.run
         calls = []
@@ -244,11 +249,13 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
 
         def inspect_native(argv, **kwargs):
             self.assertIn(argv[-1], ("figma-summary-schema", "figma-smoke-file-result", "figma-smoke-result",
-                                     "figma-smoke-verdict", "figma-smoke-frames"))
+                                     "figma-smoke-verdict", "figma-smoke-frames", "figma-bundle-manifest"))
             self.assertNotIn("CUSTOM_SMOKE_TOKEN", kwargs["env"])
             self.assertNotIn(fake_token.encode(), kwargs["input"])
             calls.append(argv[-1])
             done = real_run(argv, **kwargs)
+            if argv[-1] == "figma-bundle-manifest":
+                self.assertEqual((0, b""), (done.returncode, done.stderr))
             if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
                 request = json.loads(json.loads(kwargs["input"])["text"])
                 keys = {"quick", "bundle_root", "scale"}
@@ -303,9 +310,26 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                         subprocess, "run", side_effect=inspect_native):
             self.assertEqual(expected, schema.validate_summary(summary))
             self.assertEqual(before, summary)
-            self.assertEqual(expected, output.persist(summary, ["existing"], args))
+            with patch.object(figma_manifest, "_build_manifest_reference", side_effect=AssertionError("Python manifest")):
+                self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
-        self.assertEqual(["figma-summary-schema"] * 2, calls)
+        self.assertEqual(["figma-summary-schema", "figma-summary-schema", "figma-bundle-manifest"], calls)
+        self.assertEqual(manifest_bytes, (output.root / "manifest.json").read_bytes())
+        self.assertEqual(3, reference["schemaVersion"])
+        self.assertIs(reference["arguments"]["exportAssets"], False)
+        self.assertEqual(2, reference["summary"]["renderedNodeCount"])
+        wrong_counts = {**reference["summary"], "renderedNodeCount": True}
+        for malformed in (None, {"manifest": []}, {"manifest": {**reference, "summary": wrong_counts}},
+                          {"manifest": dict(reversed(list(reference.items())))}):
+            with self.subTest(manifest=malformed), patch.object(figma_manifest, "_probe", return_value=malformed):
+                actual = figma_manifest.build_manifest(summary, args)
+                self.assertEqual(manifest_bytes, json.dumps(actual, ensure_ascii=False, indent=2).encode())
+        invalid_summary = {**summary, "screens": None}
+        with patch.dict(os.environ, self.env, clear=True), self.assertRaises(TypeError) as observed_error:
+            figma_manifest.build_manifest(invalid_summary, args)
+        with self.assertRaises(TypeError) as expected_error:
+            figma_manifest._build_manifest_reference(invalid_summary, args)
+        self.assertEqual(str(expected_error.exception), str(observed_error.exception))
 
         def run_smoke(backend, quick=False):
             stream = io.StringIO()
