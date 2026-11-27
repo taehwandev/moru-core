@@ -10,9 +10,9 @@ type: ai-generated
 
 On 2026-11-06 the user explicitly requested a Goal covering all remaining
 migration work. The [execution inventory](../native-runtime-migration.md)
-currently contains 63 units: 31 primary entry boundaries and 32 ancillary CLIs.
+currently contains 64 units: 31 primary entry boundaries and 33 ancillary CLIs.
 Exact main-guard checks found owners absent from the 56-row
-snapshot; they are appended as 57–63 without changing existing IDs or excluding
+snapshot; they are appended as 57–64 without changing existing IDs or excluding
 their already-owned Python responsibilities.
 The [machine-readable ledger](migration-ledger.json) accounts for every unit
 and every Python source under the owned runtime/build roots. Its initial
@@ -20,8 +20,8 @@ snapshot contains 345 owned Python files and one external dependency file.
 Entry units and supporting files overlap; these are not additive task counts.
 
 Earlier implementation coverage remains useful evidence. It does not establish
-that an entire unit has stopped depending on Python: the 17 boundaries with
-native work include substantial partial migrations. Existing accepted native
+that an entire unit has stopped depending on Python. The initial 17 boundaries
+with native work included substantial partial migrations. Existing accepted native
 engines are revalidated or reuse matching evidence; they are not rewritten to
 create new progress. The Goal stays active until its complete contract is met.
 
@@ -65,7 +65,7 @@ the Wikimap search path still requires the upstream Python interpreter.
 | Wave | Units | Work |
 | --- | ---: | --- |
 | Frequent callbacks | 12 | Pretool, prompt/mailbox, Stop, continuation, renderer and ingress paths |
-| State and observability | 9 | Mailboxes, cards, memory, snapshots and recovery |
+| State and observability | 10 | Mailboxes, cards, memory, snapshots, recovery and HQ reports |
 | Lifecycle and dispatch | 14 | Admission, hooks, finish, loops, routing, discovery and setup |
 | Owned tooling | 27 | Remaining direct CLIs and their owned supporting code |
 | External boundary | 1 | Wikimap ownership and native replacement/adapter decision |

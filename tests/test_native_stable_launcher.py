@@ -53,7 +53,7 @@ class NativeStableLauncherTests(unittest.TestCase):
         for root in (self.git.main, self.git.linked, self.git.detached):
             with self.subTest(root=root.name):
                 payload = request(root)
-                expected = rows(invoke(PYTHON, payload))
+                expected = rows(invoke(PYTHON, payload, backend="python"))
                 self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=payload)))
                 self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=payload, backend="python")))
                 self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=payload, metadata="python")))
@@ -61,7 +61,7 @@ class NativeStableLauncherTests(unittest.TestCase):
     def test_native_fast_path_has_no_python_or_toolchain_on_path(self):
         empty = self.base / "empty-path"
         empty.mkdir()
-        expected = rows(invoke(PYTHON, request(self.git.main)))
+        expected = rows(invoke(PYTHON, request(self.git.main), backend="python"))
         self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=request(self.git.main), path=empty)))
 
     def test_microsoft_decision_alias_runs_without_python_and_delegates_execute(self):
@@ -174,7 +174,7 @@ class NativeStableLauncherTests(unittest.TestCase):
 
     def test_missing_native_falls_back_and_forced_native_reports_absence(self):
         (self.launcher.parent / "moru-hook-native").unlink()
-        expected = rows(invoke(PYTHON, request(self.git.main)))
+        expected = rows(invoke(PYTHON, request(self.git.main), backend="python"))
         self.assertEqual(expected, rows(self.run_cli("checkout-identity", data=request(self.git.main))))
         self.assertEqual(127, self.run_cli("checkout-identity", backend="rust").returncode)
 
@@ -280,7 +280,7 @@ class NativeStableLauncherTests(unittest.TestCase):
         document = (PROJECT / "docs/native-runtime-migration.md").read_text()
         covered = [line.split("|")[2].strip().strip("`") for line in document.splitlines()
                    if line.startswith("| ") and line.split("|")[1].strip().isdigit()]
-        self.assertEqual(63, len(covered))
+        self.assertEqual(64, len(covered))
         self.assertEqual(len(covered), len(set(covered)))
         self.assertEqual(owners, set(covered))
 

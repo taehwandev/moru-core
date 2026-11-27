@@ -6,9 +6,9 @@ type: ai-generated
 
 # Native runtime migration inventory
 
-Track **63 execution units**: **31 primary runtime units plus 32 ancillary
+Track **64 execution units**: **31 primary runtime units plus 33 ancillary
 direct CLIs**. Preserve the original 56 row IDs. The exact current main-guard
-coverage check found additional owned entrypoints, now appended as 57–63;
+coverage check found additional owned entrypoints, now appended as 57–64;
 their Python sources were already included in the full migration Goal.
 At baseline
 `1a61f4be`, the stable launcher exposed 45 alias names backed by 28 distinct
@@ -65,15 +65,15 @@ The checkout unit is integrated as native source in local main. The common
 launcher bridge connects native ingress while retaining Python delegation for
 the remaining legacy commands. Two statusline entrypoints share a native
 renderer. Python branches remain in partially native pretool, quiet mailbox,
-quiet/settled Stop, next and prepared-status paths. Twenty-one primary boundaries now have implementation
+quiet/settled Stop, next and prepared-status paths. Twenty-seven primary boundaries now have implementation
 coverage, all involving native work (including partial entry/discovery,
 launcher, pretool, mailbox callback/CLI, Stop, next, status and work-card listing).
 The latest native extensions add no new timing claim; earlier measurements remain historical.
 The ancillary manifest checker and offline Figma validator engines add
 implementation coverage for units 36–37 and 40. The native session aggregation
 used by the overhead reporter adds partial supporting coverage for unit 46.
-The ledger records native implementation coverage for 31 of 63 units. Thirty
-are partial and one needs revalidation. Another 31 are planned and one has an
+The ledger records native implementation coverage for 47 of 64 units. Forty-six
+are partial and one needs revalidation. Another 16 are planned and one has an
 unresolved external ownership boundary. The earlier
 [startup batch](runtime-performance/startup-paths.md) remains below the frequent-path
 20% target. The [mailbox batch](runtime-performance/mailbox-paths.md) reaches that
@@ -197,7 +197,7 @@ and compatibility remain Python; these helpers add no inventory unit.
 
 ## Ancillary direct CLI coverage
 
-These 31 entries preserve their ancillary inventory classification, including
+These 33 entries preserve their ancillary inventory classification, including
 tools now exposed through installed aliases. The full Goal selects all owned
 implementations for conversion. Their existing runtime effects still need the
 appropriate invocation authority; the migration does not authorize device
@@ -238,6 +238,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI and private native transcript probe | Partial native | Bounded whole-file read coverage and compaction; delivery stdout, evidence and marker handling remain with the hook |
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 | 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, decodes and hashes captured Git blobs, packs the packet, and exclusively creates explicit ordinary outputs. Python owns disclosure, Git commands, source selection and compatibility |
+| 64 | `scripts/agent_hq_report.py` | Direct `decision` CLI | Planned native | Preserve HQ run binding, bounded atomic decision and finish reports, and existing caller behavior |
 
 ## Delivery order
 

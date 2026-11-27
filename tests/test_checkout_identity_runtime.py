@@ -35,7 +35,7 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
         cls.directory.cleanup()
 
     def assert_backends(self, payload, expected=None, **kwargs):
-        actual_python = rows(invoke(PYTHON, payload, **kwargs))
+        actual_python = rows(invoke(PYTHON, payload, backend="python", **kwargs))
         actual_rust = rows(invoke([str(WRAPPER)], payload, backend="rust", **kwargs))
         self.assertEqual(actual_python, actual_rust)
         if expected is not None:
@@ -86,9 +86,9 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
     def test_live_stream_observes_head_mutation(self):
         head = self.fixture.main / ".git" / "HEAD"
         original = head.read_text()
-        for command in (PYTHON, [str(WRAPPER)]):
+        for command, backend in ((PYTHON, "python"), ([str(WRAPPER)], "rust")):
             with self.subTest(command=command):
-                process = subprocess.Popen(command, env=environment("rust"), stdin=subprocess.PIPE,
+                process = subprocess.Popen(command, env=environment(backend), stdin=subprocess.PIPE,
                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 try:
                     process.stdin.write(request(self.fixture.main))
@@ -110,7 +110,7 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
 
     def test_native_wrapper_needs_no_python_git_or_toolchain(self):
         with tempfile.TemporaryDirectory(prefix="checkout-no-path-") as tmp:
-            expected = rows(invoke(PYTHON, request(self.fixture.main)))
+            expected = rows(invoke(PYTHON, request(self.fixture.main), backend="python"))
             self.assertEqual(expected, rows(invoke([str(WRAPPER)], request(self.fixture.main), path=tmp)))
             for root in (self.fixture.detached, self.fixture.base / "empty"):
                 self.assert_backends(request(root), path=tmp)
@@ -126,10 +126,10 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
             env["PYTHONPATH"] = str(PROJECT / "scripts")
             result = subprocess.run([str(wrapper)], input=request(self.fixture.main),
                                     capture_output=True, env=env, timeout=5)
-            self.assertEqual(rows(invoke(PYTHON, request(self.fixture.main))), rows(result))
+            self.assertEqual(rows(invoke(PYTHON, request(self.fixture.main), backend="python")), rows(result))
             required = invoke([str(wrapper)], request(self.fixture.main), backend="rust")
             self.assertEqual(127, required.returncode)
-        self.assertEqual(rows(invoke(PYTHON, request(self.fixture.main))),
+        self.assertEqual(rows(invoke(PYTHON, request(self.fixture.main), backend="python")),
                          rows(invoke([str(WRAPPER)], request(self.fixture.main), backend="python")))
 
     def test_invalid_backend_arguments_and_native_failure_propagation(self):
@@ -148,6 +148,30 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
             result = invoke([str(wrapper)], request(self.fixture.main))
             self.assertEqual(23, result.returncode)
             self.assertEqual(b"", result.stdout)
+
+    def test_direct_script_selects_native_and_preserves_child_failure(self):
+        with tempfile.TemporaryDirectory(prefix="checkout-direct-entry-") as tmp:
+            root = Path(tmp)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            adapter = scripts / "checkout_identity.py"
+            shutil.copy2(PROJECT / "scripts/checkout_identity.py", adapter)
+            command = [*PYTHON[:-1], str(adapter)]
+            payload = request(self.fixture.main)
+            expected = rows(invoke(PYTHON, payload, backend="python"))
+            with patch.dict(os.environ, PYTHONPATH=str(PROJECT / "scripts")):
+                self.assertEqual(expected, rows(invoke(command, payload)))
+                self.assertEqual(127, invoke(command, payload, backend="rust").returncode)
+                binary = root / ".moru/native/bin" / BINARY.name
+                binary.parent.mkdir(parents=True)
+                binary.write_text("#!/bin/sh\nprintf 'native output\\n'\nexit 23\n")
+                binary.chmod(0o755)
+                for backend in ("auto", "rust"):
+                    with self.subTest(backend=backend):
+                        child = invoke(command, payload, backend=backend)
+                        self.assertEqual(23, child.returncode)
+                        self.assertEqual(b"native output\n", child.stdout)
+                self.assertEqual(expected, rows(invoke(command, payload, backend="python")))
 
     def test_git_fallback_timeout_and_invalid_output(self):
         with tempfile.TemporaryDirectory(prefix="checkout-fake-git-") as tmp:
@@ -168,11 +192,11 @@ class CheckoutIdentityRuntimeTests(unittest.TestCase):
             git.write_text("#!/bin/sh\n/bin/sleep 8 &\n"
                            + "printf '%s' \"$!\" > " + shlex.quote(str(pid_file)) + "\nexit 0\n")
             git.chmod(0o755)
-            for command in (PYTHON, [str(WRAPPER)]):
+            for command, backend in ((PYTHON, "python"), ([str(WRAPPER)], "rust")):
                 with self.subTest(command=command):
                     try:
                         result = invoke(command, request(self.fixture.detached),
-                                        backend="rust", path=tmp, timeout=3.5)
+                                        backend=backend, path=tmp, timeout=3.5)
                         self.assertEqual("", rows(result)[0]["branch"])
                     finally:
                         if pid_file.exists():
@@ -198,7 +222,9 @@ class CheckoutIdentityAdapterTests(unittest.TestCase):
             def readline(self, size):
                 raise OSError("read failed")
 
-        with patch.object(checkout_identity.sys, "stdin", BrokenInput()), patch.object(checkout_identity.sys, "argv", ["adapter"]):
+        with patch.dict(os.environ, MORU_CHECKOUT_IDENTITY_BACKEND="python"), patch.object(
+            checkout_identity.sys, "stdin", BrokenInput()
+        ), patch.object(checkout_identity.sys, "argv", ["adapter"]):
             with self.assertRaises(OSError):
                 checkout_identity.main()
 

@@ -128,7 +128,7 @@ def main():
         sys.path.insert(0, str(root / "scripts"))
     main_options = {"display_python": "python3"} if script_alias == "mutation-check" else {}
     return _run_in_process(script, passthrough_args,
-                           explicit_main=script_alias in ("behavior-eval", "mutation-check", "smoke-checks"),
+                           explicit_main=script_alias in ("behavior-eval", "checkout-identity", "mutation-check", "smoke-checks"),
                            main_options=main_options)
 
 def _run_in_process(script, passthrough_args, explicit_main=False, main_options=None):

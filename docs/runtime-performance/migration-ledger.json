@@ -28,7 +28,8 @@
       12,
       15,
       16,
-      17
+      17,
+      64
     ],
     "lifecycle_and_dispatch": [
       3,
@@ -86,7 +87,7 @@
       "kind": "primary",
       "status": "native_revalidation",
       "entry_aliases": "checkout-identity",
-      "remaining": "The Wikimap adapter extracted exact exit status from the shared bounded process capture. The receipt below describes the previous revision. Repeat transported and installed platform acceptance for the new shared source. Direct Python entry and shared Python callers remain open.",
+      "remaining": "The Wikimap adapter extracted exact exit status from the shared bounded process capture. The receipt below describes the previous revision. Repeat transported and installed platform acceptance for the new shared source. Direct script invocation selects the native process when available; explicit Python fallback keeps the compatibility implementation. Shared Python metadata callers remain open.",
       "verification": {
         "native_owner": "native/checkout-identity/src/lib.rs",
         "platform_evidence": "Four-host CI42189502554 at750f5e73 passed, including shared ReadProcess extraction from7e194aed; live GitHub job results and matching source hashes verified.",
@@ -911,6 +912,15 @@
       "verification": {
         "local": "Source-bound Rust reads admitted regular descriptors and decodes and hashes bounded Git blobs. Python pins size and blob queries to the recorded baseline commit. Rust assembles and renders the canonical packet under the exact byte budget and creates explicit outputs exclusively with inherited umask and no replay. Python owns source admission, Git subprocesses, context extraction and compatibility."
       }
+    },
+    {
+      "id": "scripts/agent_hq_report.py",
+      "inventory_id": 64,
+      "kind": "ancillary",
+      "status": "planned",
+      "entry_aliases": "Direct HQ decision CLI",
+      "remaining": "Port the decision CLI and shared HQ finish and decision report functions. Preserve safe run binding, bounded atomic report writes, decision options, exit codes and finish error handling.",
+      "verification": {}
     }
   ],
   "unmigrated_python_sources": [
