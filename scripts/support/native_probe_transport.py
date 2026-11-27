@@ -58,6 +58,7 @@ class NativeProbe:
             ("--completion-probe", "lesson-compaction-write-batch"): "native lesson compaction batch outcome could not be determined",
             ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
             ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
+            ("--completion-probe", "hq-report-replace"): "native HQ report replacement outcome could not be determined",
             ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
             ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
             ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -67,21 +68,27 @@ class AgentHqReportTests(unittest.TestCase):
                     with patch.dict(os.environ, {**environment(base), "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
                         path = emit(**args)
                         expected = path.read_bytes()
-                    path.unlink()
-                    with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
+                    path.write_bytes(b"old contents")
+                    path.chmod(0o644)
+                    with path.open("rb") as old_file, patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
                         hq, "_finish_bytes_reference", side_effect=AssertionError("Python finish fallback"),
                     ), patch.object(hq, "_decision_bytes_reference", side_effect=AssertionError("Python decision fallback")), (
+                        patch.object(hq, "_atomic_write_bytes_reference", side_effect=AssertionError("Python write fallback"))
+                    ), (
                         patch.object(NativeProbe, "request", wraps=NativeProbe.request)
                     ) as transport:
                         self.assertEqual(path, emit(**args))
+                        self.assertEqual(b"old contents", old_file.read())
                         operations = [call.args[1] for call in transport.call_args_list]
                         self.assertEqual(["hq-report-run-id", "hq-finish-assemble" if emit is emit_hq_finish_report
-                                          else "hq-decision-assemble"], operations)
+                                          else "hq-decision-assemble", "hq-report-replace"], operations)
                         for call in transport.call_args_list:
                             self.assertEqual("--completion-probe", call.args[0])
                             self.assertNotIn(private, json.dumps(call.args[2]))
                             self.assertNotIn("OTHER_PRIVATE_FIELD", call.args[2])
                     self.assertEqual(expected, path.read_bytes())
+                    self.assertEqual(0o600, stat.S_IMODE(path.stat().st_mode))
+                    self.assertEqual([], list(path.parent.glob("*.tmp")))
                     self.assertLessEqual(len(expected), MAX_REPORT_BYTES)
                     if emit is hq.emit_hq_decision_report:
                         kept = json.loads(expected)["decisionOptions"]
@@ -91,6 +98,54 @@ class AgentHqReportTests(unittest.TestCase):
                         data = json.loads(expected)
                         self.assertEqual(("selected-project", "selected summary", 'gate "quoted"'),
                                          (data["projectId"], data["result"], data["evidence"]))
+
+    def test_writer_refuses_symlink_ancestors_and_leaf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            prepare(base)
+            external = base / "external"
+            external.mkdir()
+            sentinel = external / "protected"
+            sentinel.write_bytes(b"unchanged")
+            parts = (".moru", "hq", "reports", "r.json")
+            with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True):
+                for index, part in enumerate(parts):
+                    with self.subTest(part=part):
+                        project = base / f"test-{index}"
+                        link = project.joinpath(*parts[:index + 1])
+                        link.parent.mkdir(parents=True)
+                        link.symlink_to(sentinel if index == 3 else external, target_is_directory=index < 3)
+                        with self.assertRaises(OSError):
+                            emit_hq_finish_report(project=project, preflight={"hq_run_id": "r"},
+                                                  passed_gates=["tests"], env={})
+                        self.assertTrue(link.is_symlink())
+                        self.assertEqual([sentinel], list(external.iterdir()))
+                        self.assertEqual(b"unchanged", sentinel.read_bytes())
+
+    def test_lost_acknowledgement_after_native_replace_does_not_replay(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            _, project = prepare(base)
+            run_process = subprocess.run
+            writes = []
+
+            def lose_write_response(argv, **kwargs):
+                done = run_process(argv, **kwargs)
+                if argv[-1] == "hq-report-replace":
+                    self.assertEqual((0, b""), (done.returncode, done.stderr))
+                    writes.append(done)
+                    raise subprocess.TimeoutExpired(argv, 10)
+                return done
+
+            with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True), patch.object(
+                hq, "_atomic_write_bytes_reference", side_effect=AssertionError("write replayed"),
+            ), patch("support.native_probe_transport.subprocess.run", side_effect=lose_write_response):
+                with self.assertRaisesRegex(OSError, "outcome could not be determined"):
+                    emit_hq_finish_report(project=project, preflight={"hq_run_id": "once"}, passed_gates=[], env={})
+            self.assertEqual(1, len(writes))
+            path = project / ".moru/hq/reports/once.json"
+            self.assertEqual("once", json.loads(path.read_bytes())["runId"])
+            self.assertEqual([path], list(path.parent.iterdir()))
 
     def test_native_run_id_selects_only_the_authorized_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -153,6 +153,26 @@ def _bound_payload_reference(payload: dict[str, Any], max_bytes: int = MAX_REPOR
 
 
 def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    if (path.is_absolute() and path.suffix == ".json" and _is_safe_run_id(path.stem)
+            and path.parent.parts[-3:] == (".moru", "hq", "reports") and NativeProbe.available()):
+        project = path.parents[3]
+        if project.is_dir() and os.path.realpath(project) == str(project):
+            try:
+                encoded = data.decode("utf-8")
+            except UnicodeDecodeError:
+                pass
+            else:
+                result = NativeProbe.request("--completion-probe", "hq-report-replace", {
+                    "project": str(project), "run_id": path.stem, "encoded": encoded,
+                })
+                if result is not None:
+                    if set(result) != {"written"} or result["written"] is not True:
+                        raise OSError("native HQ report replacement outcome could not be determined")
+                    return
+    _atomic_write_bytes_reference(path, data)
+
+
+def _atomic_write_bytes_reference(path: Path, data: bytes) -> None:
     for candidate in (path.parent.parent.parent, path.parent.parent, path.parent, path):
         if candidate.is_symlink():
             raise OSError(f"Symbolic link detected in HQ report path: {candidate}")

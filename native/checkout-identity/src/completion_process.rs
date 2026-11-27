@@ -22,6 +22,8 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "hq_report_replace.rs"]
+mod hq_report_replace;
 #[path = "hq_report_run_id.rs"]
 mod hq_report_run_id;
 #[path = "hq_report_assembly.rs"]
@@ -249,6 +251,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "hq-report-replace" {
+            return match hq_report_replace::replace(&payload) {
+                Some(Ok(receipt)) => Self::respond(Some(receipt)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "live-web-edit-hook" {
             return match live_web_edit_hook::LiveWebEditHook::record(&payload) {
                 Some(Ok(receipt)) => Self::respond(Some(receipt)),
