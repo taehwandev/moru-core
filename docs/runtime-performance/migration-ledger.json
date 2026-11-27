@@ -919,7 +919,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "Direct HQ decision CLI",
-      "remaining": "Rust assembles and encodes ordinary finish and decision reports, including field precedence and bounded option removal. Python retains run admission, input projection, clock, atomic writes, exceptional values and CLI handling. Portable and installed acceptance remain open.",
+      "remaining": "Rust assembles and encodes ordinary finish and decision reports, including field precedence and bounded option removal. Rust selects ordinary HQ run IDs. Python retains write-target validation, input projection, clock, atomic writes, exceptional values and CLI handling. Portable and installed acceptance remain open.",
       "verification": {}
     }
   ],

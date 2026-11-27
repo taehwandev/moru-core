@@ -22,6 +22,8 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "hq_report_run_id.rs"]
+mod hq_report_run_id;
 #[path = "hq_report_assembly.rs"]
 mod hq_report_assembly;
 #[path = "hq_report_encoding.rs"]
@@ -338,6 +340,7 @@ impl CompletionProcess {
             Some(operation @ ("checkout-common-dir" | "checkout-current-branch")) => {
                 Self::checkout_field(operation, &payload)
             }
+            Some("hq-report-run-id") => hq_report_run_id::HqReportRunId::resolve(&payload),
             Some("hq-finish-assemble") => hq_report_assembly::assemble(&payload, false),
             Some("hq-decision-assemble") => hq_report_assembly::assemble(&payload, true),
             Some("hq-report-encode") => hq_report_encoding::encode(&payload),

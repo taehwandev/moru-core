@@ -40,8 +40,8 @@ class WorkContinuity:
         self.prior: dict[str, Any] = {}
         self.source: Path | None = None
         self.dropped = ""
-        if not self.source_id and hq_run_id_from_env():
-            self.source_id, self.dropped, self.reason = _hq_link(args, hq_run_id_from_env(), self.reason)
+        if not self.source_id and (hq_id := hq_run_id_from_env()):
+            self.source_id, self.dropped, self.reason = _hq_link(args, hq_id, self.reason)
         if not self.source_id:
             if self.reason:
                 raise ValueError("--reuse-inputs requires --continue-from")

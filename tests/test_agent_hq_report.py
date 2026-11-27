@@ -74,13 +74,13 @@ class AgentHqReportTests(unittest.TestCase):
                         patch.object(NativeProbe, "request", wraps=NativeProbe.request)
                     ) as transport:
                         self.assertEqual(path, emit(**args))
-                        transport.assert_called_once()
-                        protocol, operation, request = transport.call_args.args
-                        self.assertEqual("--completion-probe", protocol)
-                        self.assertEqual("hq-finish-assemble" if emit is emit_hq_finish_report
-                                         else "hq-decision-assemble", operation)
-                        self.assertNotIn(private, json.dumps(request))
-                        self.assertNotIn("OTHER_PRIVATE_FIELD", json.dumps(request))
+                        operations = [call.args[1] for call in transport.call_args_list]
+                        self.assertEqual(["hq-report-run-id", "hq-finish-assemble" if emit is emit_hq_finish_report
+                                          else "hq-decision-assemble"], operations)
+                        for call in transport.call_args_list:
+                            self.assertEqual("--completion-probe", call.args[0])
+                            self.assertNotIn(private, json.dumps(call.args[2]))
+                            self.assertNotIn("OTHER_PRIVATE_FIELD", call.args[2])
                     self.assertEqual(expected, path.read_bytes())
                     self.assertLessEqual(len(expected), MAX_REPORT_BYTES)
                     if emit is hq.emit_hq_decision_report:
@@ -91,6 +91,43 @@ class AgentHqReportTests(unittest.TestCase):
                         data = json.loads(expected)
                         self.assertEqual(("selected-project", "selected summary", 'gate "quoted"'),
                                          (data["projectId"], data["result"], data["evidence"]))
+
+    def test_native_run_id_selects_only_the_authorized_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            prepare(base)
+            hidden = "unrelated-lower-priority"
+            cases = [
+                ("  env-ok ", hidden, hidden, hidden, "env-ok", {"env_id": "  env-ok "}),
+                ("../invalid", hidden, hidden, hidden, None, {"env_id": "../invalid"}),
+                (None, "preflight-ok", hidden, hidden, "preflight-ok", {"preflight_id": "preflight-ok"}),
+                (None, "bad..id", "HQ", hidden, None, {"preflight_id": "bad..id"}),
+                (None, None, " hQ ", "_worker", "_worker", {"origin": " hQ ", "agent_id": "_worker"}),
+            ]
+            with patch.dict(os.environ, {**environment(base), "PATH": ""}, clear=True):
+                native_request = NativeProbe.request
+                for env_id, pf_id, origin, agent_id, expected, selected in cases:
+                    def check_reply(*args):
+                        reply = native_request(*args)
+                        self.assertEqual({"run_id": expected or ""}, reply)
+                        return reply
+
+                    with self.subTest(expected=expected, selected=selected), patch.object(
+                        NativeProbe, "request", side_effect=check_reply,
+                    ) as transport:
+                        preflight = {"hq_run_id": pf_id, "origin": origin, "agent_run_id": agent_id,
+                                     "unrelated": hidden}
+                        self.assertEqual(expected, hq._resolve_hq_run_id(preflight, {"MORU_HQ_RUN_ID": env_id}))
+                        request = dict.fromkeys(("env_id", "preflight_id", "origin", "agent_id"))
+                        transport.assert_called_once_with("--completion-probe", "hq-report-run-id", request | selected)
+                with patch.object(NativeProbe, "request", side_effect=AssertionError("unrelated HQ probe")):
+                    self.assertIsNone(emit_hq_finish_report(project=base, preflight={"origin": "local",
+                                      "agent_run_id": hidden}, passed_gates=["tests"], env={}))
+                    self.assertFalse((base / ".moru").exists())
+                for reply in (None, {"unexpected": True}, {"run_id": "different-safe-id"}):
+                    with self.subTest(reply=reply), patch.object(NativeProbe, "request", return_value=reply):
+                        self.assertEqual("original-id", hq.hq_run_id_from_env({"MORU_HQ_RUN_ID": "original-id"}))
+                        self.assertEqual("", hq.hq_run_id_from_env({"MORU_HQ_RUN_ID": "../invalid"}))
 
     def test_non_hq_run_returns_none_without_touching_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

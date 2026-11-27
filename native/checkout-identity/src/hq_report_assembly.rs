@@ -2,7 +2,7 @@
 //! Allowed imports: bounded HQ encoding, Python text and JSON.
 //! Forbidden imports: filesystem, environment, clocks and providers.
 //! Callers/tests: completion probe and HQ report finish and decision tests.
-use super::hq_report_encoding;
+use super::{hq_report_encoding, hq_report_run_id::HqReportRunId};
 use crate::python_text::PythonText;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -29,14 +29,6 @@ fn first(values: &[&Value], default: &str) -> Option<String> {
         }
     }
     Some(default.to_owned())
-}
-
-fn safe_id(id: &str) -> bool {
-    (1..=128).contains(&id.len())
-        && !id.contains("..")
-        && id.bytes().enumerate().all(|(i, b)| {
-            b.is_ascii_alphanumeric() || b == b'_' || (i > 0 && matches!(b, b'.' | b'-'))
-        })
 }
 
 fn finish(request: &Value, pre: &Value, env: &Value, payload: &mut Value) -> Option<()> {
@@ -107,7 +99,7 @@ fn decision_body(request: &Value, payload: &mut Value) -> Option<()> {
 
 pub(super) fn assemble(request: &Value, decision: bool) -> Option<Value> {
     let run = request.get("run_id")?.as_str()?;
-    if !safe_id(run) {
+    if !HqReportRunId::valid(run) {
         return None;
     }
     let project = request.get("project_name")?.as_str()?;

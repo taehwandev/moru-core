@@ -42,18 +42,38 @@ def _is_safe_run_id(run_id: str) -> bool:
 
 def hq_run_id_from_env(environ: Mapping[str, str] | None = None) -> str:
     """The HQ task id the dispatcher bound to this process, or ''."""
-    value = _one_line((os.environ if environ is None else environ).get("MORU_HQ_RUN_ID"))
-    return value if _is_safe_run_id(value) else ""
+    return _resolve_hq_run_id({}, os.environ if environ is None else environ) or ""
 
 
 def _resolve_hq_run_id(preflight: Mapping[str, Any], environ: Mapping[str, str]) -> str | None:
-    hq_run_id = _one_line(environ.get("MORU_HQ_RUN_ID")) or _one_line(preflight.get("hq_run_id"))
-    if hq_run_id:
-        return hq_run_id if _is_safe_run_id(hq_run_id) else None
-    if _one_line(preflight.get("origin")).lower() == "hq":
-        fallback = _one_line(preflight.get("agent_run_id"))
-        return fallback if _is_safe_run_id(fallback) else None
-    return None
+    # Read lower-priority fields only when the higher-priority one is blank:
+    # callers may pass lazy mappings, and unused metadata need not enter the probe.
+    env_id = environ.get("MORU_HQ_RUN_ID")
+    preflight_id = origin = agent_id = None
+    candidate = _one_line(env_id)
+    if not candidate:
+        preflight_id = preflight.get("hq_run_id")
+        candidate = _one_line(preflight_id)
+    if not candidate:
+        origin = preflight.get("origin")
+        if _one_line(origin).lower() != "hq":
+            return None
+        agent_id = preflight.get("agent_run_id")
+        candidate = _one_line(agent_id)
+    if not candidate:
+        return None
+    fields = {"env_id": env_id, "preflight_id": preflight_id, "origin": origin, "agent_id": agent_id}
+    if all(value is None or type(value) is str for value in fields.values()):
+        reply = NativeProbe.request("--completion-probe", "hq-report-run-id", fields)
+        if reply is not None and set(reply) == {"run_id"} and type(reply["run_id"]) is str:
+            selected = reply["run_id"]
+            if not selected:
+                return None
+            # This identifier names the eventual file. Bind it to the chosen
+            # source and enforce the filename boundary before returning it.
+            if selected == candidate and _is_safe_run_id(selected):
+                return selected
+    return candidate if _is_safe_run_id(candidate) else None
 
 
 def _build_result_text(preflight: Mapping[str, Any], environ: Mapping[str, str]) -> str:
