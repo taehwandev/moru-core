@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import stat
 import subprocess
 import sys
@@ -25,6 +26,67 @@ from support.native_probe_transport import NativeProbe
 
 
 class AgentHqReportTests(unittest.TestCase):
+    def test_direct_decision_cli_native_selection_fallback_and_lost_reply(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp).resolve()
+            entry, project = prepare(base)
+            probe = entry.with_name("moru-hook-native")
+            real = probe.with_name("original-native")
+            probe.rename(real)
+            calls = base / "operations"
+            lose_reply = base / "lose-reply"
+            saved = base / "completed-write"
+            report = project / ".moru/hq/reports/cli-run.json"
+            quote = lambda path: shlex.quote(str(path))
+            # Delegate every request to the real binary, recording native success or pre-effect decline.
+            probe.write_text(
+                f'#!/bin/sh\n{quote(real)} "$@"\nstatus=$?\n'
+                f'printf "%s %s\\n" "$3" "$status" >> {quote(calls)}\n'
+                f'if [ "$3" = hq-decision-cli ] && [ "$status" = 0 ] && [ -f {quote(lose_reply)} ]; then\n'
+                f'  /bin/ln {quote(report)} {quote(saved)} || exit 3\n  exit 3\nfi\nexit "$status"\n'
+            )
+            probe.chmod(0o700)
+            args = ["decision", "--project", str(project), "--question", "  Which\noption? ",
+                    "--option", "  첫째 ", "--option", "second"]
+            env = {**environment(base), "PATH": "", "MORU_HQ_RUN_ID": "cli-run"}
+
+            def run(arguments, backend, **overrides):
+                return subprocess.run([sys.executable, "-B", str(ROOT / "scripts/agent_hq_report.py"), *arguments],
+                                      env={**env, "MORU_LAUNCHER_BACKEND": backend, **overrides},
+                                      cwd=project, capture_output=True, timeout=12)
+
+            for arguments, run_id, expected_code, native_status in (
+                (args, "cli-run", 0, 0), (args, "../foreign", 2, 0),
+                (args + ["--unexpected"], "cli-run", 2, 125),
+            ):
+                with self.subTest(run=run_id, last_arg=arguments[-1]):
+                    reference = run(arguments, "python", MORU_HQ_RUN_ID=run_id)
+                    if reference.returncode == 0:
+                        previous = report.read_bytes()
+                        report.unlink()
+                    calls.write_text("")
+                    actual = run(arguments, "auto", MORU_HQ_RUN_ID=run_id)
+                    self.assertEqual(expected_code, actual.returncode, actual.stderr)
+                    self.assertEqual((reference.returncode, reference.stdout, reference.stderr),
+                                     (actual.returncode, actual.stdout, actual.stderr))
+                    self.assertEqual([f"hq-decision-cli {native_status}"], calls.read_text().splitlines())
+                    if expected_code == 0:
+                        current = report.read_bytes()
+                        old_time, new_time = (json.loads(raw)["finishedAt"] for raw in (previous, current))
+                        self.assertIs(type(new_time), int)
+                        self.assertEqual(previous.replace(str(old_time).encode(), str(new_time).encode()), current)
+                        report.unlink()
+                    self.assertEqual([], list(report.parent.iterdir()))
+
+            calls.write_text("")
+            lose_reply.touch()
+            uncertain = run(args, "auto")
+            self.assertEqual(1, uncertain.returncode)
+            self.assertEqual(b"", uncertain.stdout)
+            self.assertIn(b"outcome could not be determined", uncertain.stderr)
+            self.assertEqual(["hq-decision-cli 0"], calls.read_text().splitlines())
+            self.assertTrue(report.samefile(saved))
+
     def test_native_bounds_keep_utf8_bytes_tie_order_and_caller_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp).resolve()

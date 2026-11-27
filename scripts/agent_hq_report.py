@@ -422,6 +422,24 @@ def emit_hq_report_for_finish(
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if type(args) is list and args[:1] == ["decision"] and all(type(arg) is str for arg in args):
+        try:
+            result = NativeProbe.request("--completion-probe", "hq-decision-cli", {"argv": args})
+            if result is not None and (
+                set(result) != {"code", "stdout", "stderr"}
+                or type(result["code"]) is not int or result["code"] not in (0, 1, 2)
+                or type(result["stdout"]) is not str or type(result["stderr"]) is not str
+            ):
+                raise OSError("native HQ report replacement outcome could not be determined")
+        except OSError as error:
+            print(f"decision report failed: {error}", file=sys.stderr)
+            return 1
+        if result is not None:
+            sys.stdout.write(result["stdout"])
+            sys.stderr.write(result["stderr"])
+            return result["code"]
+
     import argparse
 
     parser = argparse.ArgumentParser(description="Report an HQ decision the worker cannot make.")

@@ -22,6 +22,8 @@ use std::{
     os::fd::AsFd,
 };
 
+#[path = "hq_decision_cli.rs"]
+mod hq_decision_cli;
 #[path = "hq_report_replace.rs"]
 mod hq_report_replace;
 #[path = "hq_report_run_id.rs"]
@@ -251,6 +253,13 @@ impl CompletionProcess {
         let Ok(payload) = serde_json::from_slice::<Value>(&bytes) else {
             return 125;
         };
+        if args[1] == "hq-decision-cli" {
+            return match hq_decision_cli::run(&payload) {
+                Some(Ok(result)) => Self::respond(Some(result)),
+                Some(Err(_)) => 1,
+                None => 125,
+            };
+        }
         if args[1] == "hq-report-replace" {
             return match hq_report_replace::replace(&payload) {
                 Some(Ok(receipt)) => Self::respond(Some(receipt)),

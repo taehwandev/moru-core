@@ -13,16 +13,45 @@ import subprocess
 from typing import BinaryIO
 
 
+_WRITE_FAILURES = {
+    ("--setup-probe", "codex-status-line-apply"): "native Codex statusline apply outcome could not be determined",
+    ("--completion-probe", "live-web-edit-append"): "native live-web edit append outcome could not be determined",
+    ("--completion-probe", "live-web-edit-record"): "native live-web edit record outcome could not be determined",
+    ("--completion-probe", "live-web-edit-hook"): "native live-web edit hook outcome could not be determined",
+    ("--completion-probe", "path-claim-write"): "native path claim write outcome could not be determined",
+    ("--completion-probe", "path-claim-write-batch"): "native path claim batch outcome could not be determined",
+    ("--completion-probe", "path-claim-release"): "native path claim release outcome could not be determined",
+    ("--completion-probe", "path-claim-release-selected"): "native path claim release outcome could not be determined",
+    ("--completion-probe", "path-claim-expire"): "native path claim expiry outcome could not be determined",
+    ("--completion-probe", "path-claim-expire-batch"): "native path claim expiry outcome could not be determined",
+    ("--completion-probe", "lesson-compaction-apply"): "native lesson compaction outcome could not be determined",
+    ("--completion-probe", "lesson-compaction-mark-stale"): "native lesson stale marking outcome could not be determined",
+    ("--completion-probe", "lesson-compaction-write-batch"): "native lesson compaction batch outcome could not be determined",
+    ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
+    ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
+    ("--completion-probe", "hq-decision-cli"): "native HQ report replacement outcome could not be determined",
+    ("--completion-probe", "hq-report-replace"): "native HQ report replacement outcome could not be determined",
+    ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
+    ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
+    ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
+    ("--doc-transcript-probe", "agy-prepared-delivery"): "native prepared delivery outcome could not be determined",
+    ("--decision-cache-probe", "write-cached-file"): "native decision cache write outcome could not be determined",
+    ("--review-packet-probe", "write-output"): "native review packet write outcome could not be determined",
+}
+
+
 def _process_environment(protocol, operation):
     env = {**os.environ, "MORU_HOME": str(Path(__file__).resolve().parents[2])}
-    if protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
+    hq_decision_cli = (protocol, operation) == ("--completion-probe", "hq-decision-cli")
+    if hq_decision_cli or protocol == "--review-packet-probe" or (protocol, operation) == ("--decision-cache-probe", "encode-request"):
         # Keep source and environment guard inputs but omit ambient credentials.
         python_env = {"PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX", "PYTHONUTF8"}
         if any(key.startswith(("PYTHON", "_PYTHON")) and key not in python_env for key in env):
             return None
-        return {key: value for key, value in env.items() if key in {
-            "HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR",
-        } or key in python_env}
+        allowed = python_env | {"HOME", "MORU_HOME", "MORU_STATE_HOME", "CLAUDE_PROJECT_DIR", "CODEX_PROJECT_DIR"}
+        if hq_decision_cli:
+            allowed.update(("MORU_HQ_RUN_ID", "MORU_HQ_PROJECT_ID", "MORU_HQ_TASK_ID", "MORU_HQ_OPERATOR_LABEL"))
+        return {key: value for key, value in env.items() if key in allowed}
     if protocol == "--decision-cache-probe":
         env.pop("OPENROUTER_API_KEY", None)
     return env
@@ -42,30 +71,7 @@ class NativeProbe:
             return None
         if verified_launcher is not None and (protocol, operation) != ("--completion-probe", "doctor-launcher"):
             return None
-        write_failure = {
-            ("--setup-probe", "codex-status-line-apply"): "native Codex statusline apply outcome could not be determined",
-            ("--completion-probe", "live-web-edit-append"): "native live-web edit append outcome could not be determined",
-            ("--completion-probe", "live-web-edit-record"): "native live-web edit record outcome could not be determined",
-            ("--completion-probe", "live-web-edit-hook"): "native live-web edit hook outcome could not be determined",
-            ("--completion-probe", "path-claim-write"): "native path claim write outcome could not be determined",
-            ("--completion-probe", "path-claim-write-batch"): "native path claim batch outcome could not be determined",
-            ("--completion-probe", "path-claim-release"): "native path claim release outcome could not be determined",
-            ("--completion-probe", "path-claim-release-selected"): "native path claim release outcome could not be determined",
-            ("--completion-probe", "path-claim-expire"): "native path claim expiry outcome could not be determined",
-            ("--completion-probe", "path-claim-expire-batch"): "native path claim expiry outcome could not be determined",
-            ("--completion-probe", "lesson-compaction-apply"): "native lesson compaction outcome could not be determined",
-            ("--completion-probe", "lesson-compaction-mark-stale"): "native lesson stale marking outcome could not be determined",
-            ("--completion-probe", "lesson-compaction-write-batch"): "native lesson compaction batch outcome could not be determined",
-            ("--completion-probe", "capsule-refresh"): "native execution capsule refresh outcome could not be determined",
-            ("--completion-probe", "capsule-replace"): "native execution capsule replacement outcome could not be determined",
-            ("--completion-probe", "hq-report-replace"): "native HQ report replacement outcome could not be determined",
-            ("--completion-probe", "pending-publication-replace"): "native receipt replacement outcome could not be determined",
-            ("--doc-transcript-probe", "write-marker"): "native delivery marker outcome could not be determined",
-            ("--doc-transcript-probe", "agy-redelivery"): "native redelivery outcome could not be determined",
-            ("--doc-transcript-probe", "agy-prepared-delivery"): "native prepared delivery outcome could not be determined",
-            ("--decision-cache-probe", "write-cached-file"): "native decision cache write outcome could not be determined",
-            ("--review-packet-probe", "write-output"): "native review packet write outcome could not be determined",
-        }.get((protocol, operation))
+        write_failure = _WRITE_FAILURES.get((protocol, operation))
         done = NativeProbe._invoke(protocol, operation, payload, subprocess.PIPE,
                                   write_failure=write_failure, verified_launcher=verified_launcher)
         if done is None:

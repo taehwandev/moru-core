@@ -238,7 +238,7 @@ evidence is reused; no per-unit profiling prerequisite is imposed.
 | 61 | `scripts/agy_required_docs_hook.py` | Direct hook CLI and private native transcript probe | Partial native | Bounded whole-file read coverage and compaction; delivery stdout, evidence and marker handling remain with the hook |
 | 62 | `scripts/workflow_dispatch_guardian.py` | Private native guardian/gate; direct Python compatibility worker | Partial native | Gated exec, durable receipts, EOF/group cleanup and no replay; bootstrap/raw/direct/installed acceptance remain open |
 | 63 | `scripts/agent_review_packet.py` | Direct CLI | Partial native | Rust reads admitted descriptors, decodes and hashes captured Git blobs, packs the packet, and exclusively creates explicit ordinary outputs. Python owns disclosure, Git commands, source selection and compatibility |
-| 64 | `scripts/agent_hq_report.py` | Direct `decision` CLI | Partial native | Rust assembles ordinary finish and decision reports from selected fields, trims decision options to fit, and encodes the result. Rust selects ordinary HQ run IDs and atomically replaces validated reports. Python retains CLI handling and compatibility for unsupported inputs. |
+| 64 | `scripts/agent_hq_report.py` | Direct `decision` CLI | Partial native | Rust assembles ordinary finish and decision reports from selected fields, trims decision options to fit, and encodes the result. Rust selects ordinary HQ run IDs and atomically replaces validated reports. The direct Python entry forwards ordinary decision arguments to Rust, which parses them, writes the report and returns the CLI result. Python handles unsupported inputs. |
 
 ## Delivery order
 
