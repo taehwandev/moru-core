@@ -227,14 +227,23 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
         import figma_bundle_output
         import figma_manifest
+        import figma_markdown
         import figma_summary_validate as schema
         from figma_bundle_output import FigmaBundleOutput
         import live_smoke
 
         summary = {"warnings": [], "메모": ["e\u0301", 1, 1.0, -0.0, 1.25], **_valid_summary()}
         summary["designTokens"].update(colorStyles=[], textStyles=[], effectStyles=[])
-        summary["meta"].update(fileKey="", startNodeId="")
-        summary["implementationInventory"] = {"renderedNodeIds": ["1", "2"], "excludedNodes": []}
+        summary["meta"].update(fileKey="", startNodeId="", sourceUrl="https://example.invalid/화면")
+        summary["screens"] = [{"id": "1", "name": "시작", "type": "FRAME", "width": 3.5,
+                               "height": 7, "imagePath": "frames/1.png"}]
+        summary["implementationInventory"] = {"renderedNodeIds": ["1", "2"], "excludedNodes": [
+            {"id": "3", "name": "숨김", "type": "FRAME", "reasons": ["hidden", "ancestor"]}]}
+        summary["flowEdges"] = [{"fromNodeId": "1", "fromName": "시작", "toNodeId": "2", "toName": "끝"}]
+        summary["flowInteractions"] = [{"fromNodeId": "1", "fromName": f"동작-{i:03}", "toNodeId": "2",
+                                        "triggerType": "ON_CLICK", "actionType": "NODE", "navigation": "NAVIGATE",
+                                        "transition": {"type": "DISSOLVE", "easingType": "LINEAR", "durationSeconds": 0.2}}
+                                       for i in range(123)]
         before = copy.deepcopy(summary)
         expected = ["meta.fileKey missing", "meta.startNodeId missing"]
         output = FigmaBundleOutput(self.base / "bundle")
@@ -262,6 +271,7 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                 self.assertEqual((0, b""), (done.returncode, done.stderr))
             if argv[-1] == "figma-bundle-prepare":
                 receipt = json.loads(done.stdout)["result"]
+                self.assertEqual(figma_overview, receipt["markdown_overview"])
                 self.assertEqual(summary_bytes, receipt["summary_json"].encode())
                 self.assertEqual(manifest_bytes, receipt["manifest_json"].encode())
             if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
@@ -312,6 +322,7 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                     (root / "frames" / name).write_bytes(b"bad")
             return subprocess.CompletedProcess(argv, 0, "", "")
 
+        figma_overview = figma_markdown._markdown_overview_reference(before)
         with patch.dict(os.environ, {**self.env, "PATH": str(self.empty_path), "CUSTOM_SMOKE_TOKEN": fake_token},
                         clear=True), patch.object(schema, "_validate_summary_reference",
                         side_effect=AssertionError("unexpected Python schema fallback")), patch.object(
@@ -320,7 +331,8 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             self.assertEqual(before, summary)
             with patch.object(figma_manifest, "_build_manifest_reference", side_effect=AssertionError("Python manifest")):
                 self.assertEqual(reference, figma_manifest.build_manifest(before, args))
-                with patch.object(figma_bundle_output, "write_json", side_effect=AssertionError("Python JSON writer")):
+                with patch.object(figma_bundle_output, "write_json", side_effect=AssertionError("Python JSON writer")), \
+                        patch.object(figma_markdown, "_markdown_overview_reference", side_effect=AssertionError("Python overview")):
                     self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
         self.assertEqual(["figma-summary-schema", "figma-bundle-manifest", "figma-bundle-prepare"], calls)
@@ -336,10 +348,16 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             baseline.persist(copy.deepcopy(before), ["existing"], args)
         files = [(baseline.root / name).read_bytes() for name in artifacts]
         self.assertEqual(files, [(output.root / name).read_bytes() for name in artifacts])
+        markdown = files[1].decode()
+        for excerpt in ("https://example.invalid/화면", "3.5x7", "`3` 숨김 (FRAME) — hidden, ancestor",
+                        "`1` 시작 -> `2` 끝", "동작-119", "DISSOLVE, 0.2s, LINEAR", "... and 3 more"):
+            self.assertIn(excerpt, markdown)
+        self.assertNotIn("동작-120", markdown)
         probe = figma_manifest._probe
         valid_receipt = {"problems": expected, "manifest": reference, "summary_json": summary_bytes.decode(),
                          "manifest_json": manifest_bytes.decode()}
         for corrupt in ({"problems": expected, "manifest": reference},
+                        valid_receipt, {**valid_receipt, "markdown_overview": ["# Figma Handoff", False]},
                         {**valid_receipt, "problems": ["untrusted"], "manifest": {**reference, "summary": wrong_counts}},
                         {**valid_receipt, "problems": [False]}, {**valid_receipt, "manifest_json": False},
                         {**valid_receipt, "summary_json": '{"truncated":'}):
@@ -348,8 +366,10 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
 
             candidate = copy.deepcopy(before)
             with patch.dict(os.environ, self.env, clear=True), patch.object(
-                    figma_manifest, "_probe", side_effect=corrupt_prepare) as intercepted:
+                    figma_manifest, "_probe", side_effect=corrupt_prepare) as intercepted, patch.object(
+                    figma_markdown, "_markdown_overview_reference", wraps=figma_markdown._markdown_overview_reference) as fallback:
                 self.assertEqual(expected, output.persist(candidate, ["existing"], args))
+            fallback.assert_called_once()
             self.assertIn("figma-bundle-prepare", [call.args[0] for call in intercepted.call_args_list])
             self.assertEqual(summary, candidate)
             self.assertEqual(files, [(output.root / name).read_bytes() for name in artifacts])

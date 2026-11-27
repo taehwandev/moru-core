@@ -5,6 +5,9 @@
 use crate::python_json::{PythonJson, Value as PythonValue};
 use serde_json::{json, Map, Value};
 
+#[path = "figma_markdown_overview.rs"]
+mod markdown_overview;
+
 fn list_len(object: &Map<String, Value>, key: &str, optional: bool) -> Option<usize> {
     match object.get(key) {
         None if optional => Some(0),
@@ -112,6 +115,9 @@ pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
             false
         )?);
         receipt["manifest_json"] = json!(PythonJson::render(&manifest, true, false)?);
+        if let Some(lines) = markdown_overview::render(input.get("summary")?) {
+            receipt["markdown_overview"] = json!(lines);
+        }
     }
     receipt
         .as_object_mut()?

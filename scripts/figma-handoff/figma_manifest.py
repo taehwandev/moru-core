@@ -43,6 +43,12 @@ def _probe_manifest(summary, args, *, prepare, warnings=None):
     receipt = _probe(operation, payload, __file__)
     if type(receipt) is not dict:
         return None
+    if prepare and "markdown_overview" in receipt:
+        overview = receipt["markdown_overview"]
+        if (type(overview) is not list or not overview or any(type(line) is not str for line in overview)
+                or overview[0] != "# Figma Handoff"):
+            return None
+        expected.add("markdown_overview")
     encoded = prepare and warnings is not None and set(receipt) == expected | {"manifest_json", "summary_json"}
     if not encoded and set(receipt) != expected:
         return None

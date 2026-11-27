@@ -205,7 +205,7 @@ def _render_implementation_checklist(lines: list[str]) -> None:
     ])
 
 
-def render_markdown(summary: dict[str, Any]) -> str:
+def _markdown_overview_reference(summary: dict[str, Any]) -> list[str]:
     meta = summary["meta"]
     lines = [
         "# Figma Handoff", "",
@@ -233,7 +233,11 @@ def render_markdown(summary: dict[str, Any]) -> str:
     if len(interactions) > 120:
         interaction_rows.append(f"- ... and {len(interactions) - 120} more")
     _section(lines, "Prototype Interaction Details", interaction_rows)
+    return lines
 
+
+def render_markdown(summary: dict[str, Any], *, overview: list[str] | None = None) -> str:
+    lines = _markdown_overview_reference(summary) if overview is None else list(overview)
     tokens = summary.get("designTokens", {})
     _section(lines, "Design Tokens — Color Styles", (_named_color_row(style) for style in tokens.get("colorStyles", [])))
     _section(lines, "Design Tokens — Text Styles", (

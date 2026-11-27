@@ -51,7 +51,9 @@ class FigmaBundleOutput:
             (summary_dir / "design-summary.json").write_text(prepared["summary_json"], encoding="utf-8")
         else:
             write_json(summary_dir / "design-summary.json", summary)
-        (summary_dir / "design-handoff.md").write_text(render_markdown(summary), encoding="utf-8")
+        overview = prepared.get("markdown_overview") if prepared is not None else None
+        markdown = render_markdown(summary) if overview is None else render_markdown(summary, overview=overview)
+        (summary_dir / "design-handoff.md").write_text(markdown, encoding="utf-8")
         if native_json:
             (self.root / "manifest.json").write_text(prepared["manifest_json"], encoding="utf-8")
         else:
