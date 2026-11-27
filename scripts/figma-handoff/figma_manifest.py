@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -18,7 +19,7 @@ def build_manifest(summary: dict[str, Any], args: argparse.Namespace) -> dict[st
     return receipt["manifest"] if receipt is not None else _build_manifest_reference(summary, args)
 
 
-def _probe_manifest(summary, args, *, prepare):
+def _probe_manifest(summary, args, *, prepare, warnings=None):
     if _probe is None or type(summary) is not dict or (type(args) is not argparse.Namespace and type(args) is not SimpleNamespace):
         return None
     fields = vars(args)
@@ -33,8 +34,17 @@ def _probe_manifest(summary, args, *, prepare):
         return None
     arguments = _manifest_arguments(args)
     operation = "figma-bundle-prepare" if prepare else "figma-bundle-manifest"
-    receipt = _probe(operation, {"summary": summary, "arguments": arguments}, __file__)
-    if type(receipt) is not dict or set(receipt) != ({"manifest", "problems"} if prepare else {"manifest"}):
+    payload = {"summary": summary, "arguments": arguments}
+    expected = {"manifest"}
+    if prepare:
+        expected.add("problems")
+        if warnings is not None:
+            payload["warnings"] = warnings
+    receipt = _probe(operation, payload, __file__)
+    if type(receipt) is not dict:
+        return None
+    encoded = prepare and warnings is not None and set(receipt) == expected | {"manifest_json", "summary_json"}
+    if not encoded and set(receipt) != expected:
         return None
     if prepare and (type(receipt["problems"]) is not list or any(type(item) is not str for item in receipt["problems"])):
         return None
@@ -46,6 +56,17 @@ def _probe_manifest(summary, args, *, prepare):
             or type(manifest["summary"]) is not dict or tuple(manifest["summary"]) != _COUNT_FIELDS
             or any(type(count) is not int or count < 0 for count in manifest["summary"].values())):
         return None
+    if encoded:
+        expected_summary = {**summary, "warnings": warnings + [f"schema: {problem}" for problem in receipt["problems"]]}
+        for key, document in (("summary_json", expected_summary), ("manifest_json", manifest)):
+            text = receipt[key]
+            if type(text) is not str:
+                return None
+            try:
+                if json.loads(text.encode("utf-8")) != document:
+                    return None
+            except (ValueError, UnicodeError, RecursionError):
+                return None
     return {**receipt, "manifest": {**manifest, "schemaVersion": schema, "arguments": arguments}}
 
 

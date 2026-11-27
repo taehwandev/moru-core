@@ -42,14 +42,21 @@ class FigmaBundleOutput:
     ) -> list[str]:
         prepared = None
         if type(warnings) is list and all(type(warning) is str for warning in warnings):
-            prepared = _probe_manifest(summary, args, prepare=True)
+            prepared = _probe_manifest(summary, args, prepare=True, warnings=warnings)
         problems = validate_summary(summary) if prepared is None else prepared["problems"]
         summary["warnings"] = warnings + [f"schema: {problem}" for problem in problems]
         summary_dir = self.root / "summary"
-        write_json(summary_dir / "design-summary.json", summary)
+        native_json = prepared is not None and "summary_json" in prepared
+        if native_json:
+            (summary_dir / "design-summary.json").write_text(prepared["summary_json"], encoding="utf-8")
+        else:
+            write_json(summary_dir / "design-summary.json", summary)
         (summary_dir / "design-handoff.md").write_text(render_markdown(summary), encoding="utf-8")
-        manifest = build_manifest(summary, args) if prepared is None else prepared["manifest"]
-        write_json(self.root / "manifest.json", manifest)
+        if native_json:
+            (self.root / "manifest.json").write_text(prepared["manifest_json"], encoding="utf-8")
+        else:
+            manifest = build_manifest(summary, args) if prepared is None else prepared["manifest"]
+            write_json(self.root / "manifest.json", manifest)
         return problems
 
     def report(

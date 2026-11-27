@@ -2,6 +2,7 @@
 //! allowed imports: JSON and summary validation; forbidden imports: filesystem, network and process;
 //! callers/tests: Figma manifest probe and extractor manifest fixtures;
 //! verification: ordered count, default and explicit-null behavior.
+use crate::python_json::{PythonJson, Value as PythonValue};
 use serde_json::{json, Map, Value};
 
 fn list_len(object: &Map<String, Value>, key: &str, optional: bool) -> Option<usize> {
@@ -89,8 +90,29 @@ pub(super) fn prepare(text: &str, validate_summary: bool) -> Option<Value> {
     if !validate_summary {
         return Some(receipt);
     }
-    let input = crate::python_json::PythonJson::parse(text)?;
+    let input = PythonJson::parse(text)?;
     let problems = crate::figma_validation::FigmaValidation::validate(input.get("summary")?)?;
+    if let Some(warnings) = input.get("warnings") {
+        let mut warnings: Vec<_> = warnings
+            .as_array()?
+            .iter()
+            .map(|warning| Some(PythonValue::String(warning.as_str()?.to_owned())))
+            .collect::<Option<_>>()?;
+        warnings.extend(
+            problems
+                .iter()
+                .map(|problem| PythonValue::String(format!("schema: {problem}"))),
+        );
+        let mut summary = input.get("summary")?.as_object()?.clone();
+        summary.insert("warnings".into(), PythonValue::Array(warnings));
+        let manifest = PythonJson::parse(&receipt.get("manifest")?.to_string())?;
+        receipt["summary_json"] = json!(PythonJson::render(
+            &PythonValue::Object(summary),
+            true,
+            false
+        )?);
+        receipt["manifest_json"] = json!(PythonJson::render(&manifest, true, false)?);
+    }
     receipt
         .as_object_mut()?
         .insert("problems".into(), json!(problems));

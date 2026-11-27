@@ -225,12 +225,13 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
                                   str(out / "smoke"), "1", "1.25"], records[1])
 
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
+        import figma_bundle_output
         import figma_manifest
         import figma_summary_validate as schema
         from figma_bundle_output import FigmaBundleOutput
         import live_smoke
 
-        summary = _valid_summary()
+        summary = {"warnings": [], "메모": ["e\u0301", 1, 1.0, -0.0, 1.25], **_valid_summary()}
         summary["designTokens"].update(colorStyles=[], textStyles=[], effectStyles=[])
         summary["meta"].update(fileKey="", startNodeId="")
         summary["implementationInventory"] = {"renderedNodeIds": ["1", "2"], "excludedNodes": []}
@@ -242,6 +243,8 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
         with patch.dict(os.environ, {**self.env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True):
             reference = figma_manifest.build_manifest(before, args)
         manifest_bytes = json.dumps(reference, indent=2, ensure_ascii=False).encode()
+        summary_bytes = json.dumps({**before, "warnings": ["existing", *["schema: " + p for p in expected]]},
+                                   indent=2, ensure_ascii=False).encode()
         fake_token = "synthetic-only!"
         real_run = subprocess.run
         calls = []
@@ -257,6 +260,10 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             done = real_run(argv, **kwargs)
             if argv[-1] in ("figma-bundle-manifest", "figma-bundle-prepare"):
                 self.assertEqual((0, b""), (done.returncode, done.stderr))
+            if argv[-1] == "figma-bundle-prepare":
+                receipt = json.loads(done.stdout)["result"]
+                self.assertEqual(summary_bytes, receipt["summary_json"].encode())
+                self.assertEqual(manifest_bytes, receipt["manifest_json"].encode())
             if argv[-1] in ("figma-smoke-file-result", "figma-smoke-result"):
                 request = json.loads(json.loads(kwargs["input"])["text"])
                 keys = {"quick", "bundle_root", "scale"}
@@ -313,7 +320,8 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
             self.assertEqual(before, summary)
             with patch.object(figma_manifest, "_build_manifest_reference", side_effect=AssertionError("Python manifest")):
                 self.assertEqual(reference, figma_manifest.build_manifest(before, args))
-                self.assertEqual(expected, output.persist(summary, ["existing"], args))
+                with patch.object(figma_bundle_output, "write_json", side_effect=AssertionError("Python JSON writer")):
+                    self.assertEqual(expected, output.persist(summary, ["existing"], args))
             self.assertEqual({**before, "warnings": ["existing", *["schema: " + p for p in expected]]}, summary)
         self.assertEqual(["figma-summary-schema", "figma-bundle-manifest", "figma-bundle-prepare"], calls)
         self.assertEqual(manifest_bytes, (output.root / "manifest.json").read_bytes())
@@ -329,8 +337,12 @@ if os.environ["TEST_CHILD_STATUS"] == "compat":
         files = [(baseline.root / name).read_bytes() for name in artifacts]
         self.assertEqual(files, [(output.root / name).read_bytes() for name in artifacts])
         probe = figma_manifest._probe
-        for corrupt in ({"problems": ["untrusted"], "manifest": {**reference, "summary": wrong_counts}},
-                        {"problems": [False], "manifest": reference}):
+        valid_receipt = {"problems": expected, "manifest": reference, "summary_json": summary_bytes.decode(),
+                         "manifest_json": manifest_bytes.decode()}
+        for corrupt in ({"problems": expected, "manifest": reference},
+                        {**valid_receipt, "problems": ["untrusted"], "manifest": {**reference, "summary": wrong_counts}},
+                        {**valid_receipt, "problems": [False]}, {**valid_receipt, "manifest_json": False},
+                        {**valid_receipt, "summary_json": '{"truncated":'}):
             def corrupt_prepare(operation, payload, source):
                 return corrupt if operation == "figma-bundle-prepare" else probe(operation, payload, source)
 
