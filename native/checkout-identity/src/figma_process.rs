@@ -103,6 +103,21 @@ impl FigmaProcess {
     ) -> Option<serde_json::Value> {
         let input = PythonJson::parse(Self::bound_input(request, root, "text")?)?;
         let path = Path::new(input.get("bundle_root")?.as_str()?);
+        Self::bundle_file_result(&input, path)
+    }
+
+    pub(crate) fn inspect_smoke_bundle(
+        path: &Path,
+        quick: bool,
+        scale: f64,
+    ) -> Option<serde_json::Value> {
+        let input = serde_json::json!({
+            "bundle_root": path.to_str()?, "quick": quick, "scale": scale,
+        });
+        Self::bundle_file_result(&PythonJson::parse(&input.to_string())?, path)
+    }
+
+    fn bundle_file_result(input: &Value, path: &Path) -> Option<serde_json::Value> {
         if path.parent().is_none()
             || PythonInputFile::through_descriptor(path)
             || path.canonicalize().ok()?.as_os_str() != path.as_os_str()
@@ -113,7 +128,7 @@ impl FigmaProcess {
             crate::atomic_sibling::AtomicSibling::open_directory(&path.join("summary"))?;
         let bytes = Self::summary_bytes(&directory)?;
         let text = Text::universal_newlines(PythonUtf8::decode(&bytes).ok()?);
-        Self::bundle_result(&input, &PythonJson::parse(&text)?)
+        Self::bundle_result(input, &PythonJson::parse(&text)?)
     }
 
     fn summary_bytes(directory: &std::fs::File) -> Option<Vec<u8>> {

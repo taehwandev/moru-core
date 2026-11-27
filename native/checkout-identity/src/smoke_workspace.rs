@@ -15,7 +15,15 @@ pub(crate) struct SmokeWorkspace(PathBuf);
 
 impl SmokeWorkspace {
     pub(crate) fn allocate(parent: &Path) -> io::Result<Self> {
-        let template = parent.join("tmpXXXXXX");
+        Self::allocate_template(parent, "tmpXXXXXX")
+    }
+
+    pub(crate) fn figma(parent: &Path) -> io::Result<Self> {
+        Self::allocate_template(parent, "figma-smoke-XXXXXX")
+    }
+
+    fn allocate_template(parent: &Path, template: &str) -> io::Result<Self> {
+        let template = parent.join(template);
         let mut bytes = template.as_os_str().as_bytes().to_vec();
         bytes.push(0);
         // mkdtemp atomically creates a new, owner-only directory and edits the

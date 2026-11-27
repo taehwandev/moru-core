@@ -1,6 +1,6 @@
 """Offline Figma validator: exact reference output, refusals and no-Python proof."""
 import copy
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 import os
@@ -78,6 +78,66 @@ class NativeFigmaValidate(unittest.TestCase):
                 self.assertEqual(2, expected.returncode)
                 self.assertEqual(result(expected), result(invoke(args, **env)))
                 self.assertEqual(127, invoke(args, PATH=str(self.empty_path), **env).returncode)
+
+    def test_public_live_smoke_runs_synthetic_extractor_once_and_cleans_up(self):
+        import live_smoke
+
+        stub = self.empty_path / "python3"
+        log = self.base / "extractor-args.jsonl"
+        fixture = self.base / "bundle"
+        (fixture / "summary").mkdir(parents=True)
+        (fixture / "summary/design-summary.json").write_text(json.dumps(_valid_summary()))
+        (fixture / "frames").mkdir()
+        (fixture / "frames/1.png").write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(8) + struct.pack(">II", 1, 1))
+        (fixture / "assets").mkdir()
+        (fixture / "assets/1.svg").touch()
+        stub.write_text(f"#!{sys.executable}\n" + '''import json, os, shutil, sys
+from pathlib import Path
+args = sys.argv[1:]
+with Path(os.environ["TEST_LOG"]).open("a") as records:
+    print(json.dumps(args), file=records)
+if len(args) == 5 and Path(args[0]).name == "live_smoke.py" and args[1] == "--moru-inspect-bundle":
+    os.execv(sys.executable, [sys.executable, *args])
+if not args or Path(args[0]).name != "figma-handoff.py":
+    sys.exit(94)
+root = Path(args[args.index("--out") + 1])
+assert root.is_dir()
+print("  " + "표" * 610 + "  ")
+print("  " + "오" * 810 + "  ", file=sys.stderr)
+if os.environ["TEST_CHILD_STATUS"] == "fail":
+    sys.exit(19)
+shutil.copytree(os.environ["TEST_BUNDLE"], root / "smoke")
+if os.environ["TEST_CHILD_STATUS"] == "compat":
+    (root / "smoke/frames/link.png").symlink_to("1.png")
+''')
+        stub.chmod(0o700)
+        url = "https://example.invalid/synthetic"
+        for quick, status in ((False, "success"), (True, "success"), (False, "fail"), (True, "compat")):
+            args = ["--token-env", "MOCK_TOKEN", "--scale", "1.25", "--url", url] + (["--quick"] if quick else [])
+            env = {**self.env, "PATH": str(self.empty_path), "MOCK_TOKEN": "synthetic", "TEST_LOG": str(log),
+                   "TEST_CHILD_STATUS": status, "TEST_BUNDLE": str(fixture)}
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with self.subTest(quick=quick, status=status), patch.dict(os.environ, {
+                    **env, "MORU_LAUNCHER_BACKEND": "python"}, clear=True), patch.object(
+                    sys, "executable", str(stub)), patch.object(sys, "argv", ["live_smoke.py", *args]), \
+                    redirect_stdout(stdout), redirect_stderr(stderr):
+                expected_code = live_smoke.main()
+            self.assertEqual(int(status == "fail"), expected_code, stderr.getvalue())
+            log.write_text("")
+            observed = subprocess.run([str(self.entry), "figma-live-smoke", *args], env=env, cwd=self.project,
+                                      capture_output=True, stdin=subprocess.DEVNULL, timeout=8)
+            self.assertEqual((expected_code, stdout.getvalue().encode(), stderr.getvalue().encode()), result(observed))
+            records = [json.loads(line) for line in log.read_text().splitlines()]
+            self.assertEqual(2 if status == "compat" else 1, len(records))
+            child = records[0]
+            out = Path(child[child.index("--out") + 1])
+            self.assertEqual([str(live_smoke.TOOL), "--url", url, "--name", "smoke", "--out", str(out),
+                              "--scale", "1.25", "--token-env", "MOCK_TOKEN"] +
+                             ([] if quick else ["--export-assets"]), child)
+            self.assertFalse(out.exists())
+            if status == "compat":
+                self.assertEqual([str(Path(live_smoke.__file__).resolve()), "--moru-inspect-bundle",
+                                  str(out / "smoke"), "1", "1.25"], records[1])
 
     def test_imported_schema_reaches_native_for_bundle_and_offline_smoke(self):
         import figma_summary_validate as schema

@@ -18,6 +18,7 @@ Usage: python3 live_smoke.py --url <frame-url> [--scale 3]
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import os
 import shutil
@@ -169,14 +170,14 @@ def _bundle_receipt(operation, out, quick, scale, fields):
     return receipt
 
 
-def _inspect_bundle(summary, out, quick, scale):
+def _inspect_bundle(summary, out, quick, scale, *, use_native=True, stream=None):
     failures = []
-    verdict = _native_verdict(summary, quick)
+    verdict = _native_verdict(summary, quick) if use_native else None
     problems = _validate_summary_reference(summary) if verdict is None else verdict["problems"]
     if problems:
         failures.append(f"schema violations: {problems}")
 
-    discovered = _discovered_frames(summary, out, scale)
+    discovered = _discovered_frames(summary, out, scale) if use_native else None
     if discovered is None:
         frames = sorted((out / "frames").glob("*.png"))
         failures.extend(_frame_failures_reference(summary, out, frames, scale))
@@ -205,9 +206,9 @@ def _inspect_bundle(summary, out, quick, scale):
     else:
         failures.extend(verdict["coverage_failures"])
         report = verdict["report"]
-    print(report)
+    print(report, file=stream)
     print(f"frames={len(frames)} (for example: {_png_size(frames[0]) if frames else None}) "
-          f"assets: svg={svg_count} png={png_count}")
+          f"assets: svg={svg_count} png={png_count}", file=stream)
     return failures
 
 
@@ -267,14 +268,35 @@ def main() -> int:
     if receipt is not None:
         sys.stdout.write(receipt["after_cleanup"])
         return receipt["code"]
+    return _finish_report(failures)
+
+
+def _finish_report(failures, stream=None):
     if failures:
-        print("LIVE SMOKE FAILURES:")
+        print("LIVE SMOKE FAILURES:", file=stream)
         for failure in failures:
-            print(f" - {failure}")
+            print(f" - {failure}", file=stream)
         return 1
-    print("LIVE SMOKE PASS ✅")
+    print("LIVE SMOKE PASS ✅", file=stream)
+    return 0
+
+
+
+def _inspect_existing(args):
+    if len(args) != 3 or args[1] not in ("0", "1") or not Path(args[0]).is_absolute():
+        print("invalid internal bundle inspection arguments", file=sys.stderr)
+        return 2
+    out = Path(args[0])
+    scale = float(args[2])
+    summary = json.loads((out / "summary" / "design-summary.json").read_text(encoding="utf-8"))
+    before, after = io.StringIO(), io.StringIO()
+    failures = _inspect_bundle(summary, out, args[1] == "1", scale, use_native=False, stream=before)
+    code = _finish_report(failures, after)
+    print(json.dumps({"stdout": before.getvalue(), "code": code, "after_cleanup": after.getvalue()}))
     return 0
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--moru-inspect-bundle"]:
+        raise SystemExit(_inspect_existing(sys.argv[2:]))
     raise SystemExit(main())

@@ -598,7 +598,7 @@
       "kind": "ancillary",
       "status": "partial_native",
       "entry_aliases": "figma-live-smoke; direct Python CLI",
-      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Rust discovers ordinary downloaded frames and counts assets in the same batch that checks PNG headers and expected frame dimensions. Rust also reports incomplete layout coverage and image-fill recovery. Rust reads the extracted summary directly and assembles the ordinary post-extraction report, sample dimensions, ordered diagnostics and exit status in one call. The generated alias handles ordinary credential-free skips in Rust. Python retains extraction orchestration, cleanup and compatibility CLI branches.",
+      "remaining": "One Rust call validates ordinary in-memory summaries, computes coverage and renders the Markdown report. Rust discovers ordinary downloaded frames and counts assets in the same batch that checks PNG headers and expected frame dimensions. Rust also reports incomplete layout coverage and image-fill recovery. Rust reads the extracted summary directly and assembles the ordinary post-extraction report, sample dimensions, ordered diagnostics and exit status in one call. The generated alias owns ordinary smoke orchestration and temporary bundle cleanup in Rust. It invokes the existing Figma extractor and can inspect an unsupported result through Python without repeating extraction. The extractor and exceptional or direct Python CLI branches remain.",
       "verification": {}
     },
     {
